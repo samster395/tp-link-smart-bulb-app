@@ -1,31 +1,32 @@
 <!DOCTYPE html>
 <html>
    <head>
-      <title>TP-Link Smart Bulb Control</title>
+      <title>TP-Link Smart Bulb Web Interface</title>
       <meta charset="utf-8">
 		<link rel="stylesheet" href="./files/style.css">
 		<script src="./files/color.js"></script>
-        <!-- Insert this line above script imports  -->
-<script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
-
-<!-- normal script imports etc  -->
-<script src="./files/jquery-3.3.1.min.js"></script>  
-
-<!-- Insert this line after script imports -->
-<script>if (window.module) module = window.module;</script>
+        <script src="./files/jquery-3.3.1.min.js"></script>
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
    </head>
    <body>
 		<!--<h2>TP-Link Smart Bulb Web Control</h2>-->
 		<p> If you send commands too frequently, they wont work (The API will say it has worked but the bulb wont update)</p>
         <button onclick="buttonClickedScan()">Scan for Bulbs</button>&nbsp;	&nbsp;	&nbsp;	&nbsp; &nbsp;	&nbsp;	&nbsp;	&nbsp;  <button onclick="toggleElement('responsediv')">Toggle Response</button><br><br>
-        Bulb IP: <input id="bip" type="text" name="bip">  <button onclick="buttonClickedOn()">On</button>  <button onclick="buttonClickedOff()">Off</button>     
+        Bulb IP (Type IP or click box for saved bulbs): <!--<input id="bip" type="text" name="bip"> -->
+		<input id="selected" type="text" list="bulbs" name="bulb" autocomplete="off"/>
+		<datalist id="bulbs">
+		</datalist>
+
+		<button onclick="buttonClickedOn()">On</button>  <button onclick="buttonClickedOff()">Off</button>
         
-        	&nbsp;	&nbsp;	&nbsp;	&nbsp; &nbsp;	&nbsp;	&nbsp;	&nbsp;<button onclick="buttonClickedInfo()">Info</button>  <button onclick="buttonClickedCloud()">Cloud Info</button>  <button onclick="buttonClickedSchedule()">Schedule</button>  <button onclick="buttonClickedDetails()">Details</button><br><br>
+        	&nbsp;	&nbsp;	&nbsp;	&nbsp; &nbsp;	&nbsp;	&nbsp;	&nbsp;<button onclick="buttonClickedInfo()">Info</button>  <button onclick="buttonClickedCloud()">Cloud Info</button>  <button onclick="buttonClickedSchedule()">Schedule</button>  <!--<button onclick="buttonClickedDetails()">Details</button>--><br><br>
         
-        <input type="radio" name="hueorct" value="ct" checked> Color Temp: <input type="range" min="2500" max="6500" value="2700" class="slider" id="ctemp"> Value: <input size="2" id="ctval"></input> K<br><br>
-        <input type="radio" name="hueorct" value="hue"> Hex Color Value: <input type="text" name="hext" id="hext" placeholder="color value" value="#ffffff" size="8"> <button onclick="toggleElement('cpicker')">Toggle Color Picker</button><br><br>
+		<button onclick="buttonClickedPreset(0)">Preset 1</button> <button onclick="buttonClickedPreset(1)">Preset 2</button> <button onclick="buttonClickedPreset(2)">Preset 3</button> <button onclick="buttonClickedPreset(3)">Preset 4</button><br><br>
+        <input type="radio" name="hueorct" value="ct" id="ct" checked> Color Temp: <input type="range" min="2500" max="6500" value="2700" class="slider" id="ctemp"> Value: <input size="2" id="ctval"></input> K<br><br>
+        <input type="radio" name="hueorct" value="hue" id="hue"> Hex Color Value: <input type="text" name="hext" id="hext" placeholder="color value" value="#ffffff" size="8"> <button onclick="toggleElement('cpicker')">Toggle Color Picker</button><br><br>
 		
-		Brightness (Between 0-100): <input type="text" name="brightt" id="brightt" value="50" size="3" maxlength="3">&nbsp; Transition (in milliseconds): <input size="1" type="text" name="trans" id="trans" value="0" >
+		Brightness (Between 0-100): <input type="text" name="brightt" id="brightt" value="100" size="3" maxlength="3">&nbsp; Transition (in milliseconds): <input size="1" type="text" name="trans" id="trans" value="0" >
         <button onclick="buttonClickedType()">Send</button> <br>
         <div id="responsediv">
         <p>Response:</p>
@@ -44,6 +45,38 @@
 			output.oninput = function() {
                 slider.value = this.value;
             }
+			
+			$(document).ready(function() {
+
+				var data = {};
+				$("#bulbs option").each(function(i,el) {  
+				data[$(el).data("value")] = $(el).val();
+				});
+				//console.log(data, $("#bulbs option").val());
+				
+				$('input[name=bulb]').focusin(function() {
+					$('input[name=bulb]').val('');
+				});
+				
+			});
+			
+				if (localStorage['bulbs']) {
+					var bulbsL = JSON.parse(localStorage['bulbs']);
+				} else {
+					var bulbsL = [];
+				}
+				
+				var list = document.getElementById('bulbs');
+				for (var i = 0; i < bulbsL.length; i++) {
+
+				var option = document.createElement('option');
+				option.value = bulbsL[i].name;
+				option.setAttribute('data-value', bulbsL[i].ip);
+				//option.data("value") = bulbsL[i].ip;
+				list.appendChild(option);
+					//appendTaskToList(bulbsL[i].name, bulbsL[i].ip);
+				}
+
             
             function syntaxHighlight(json) {
                 if (typeof json != 'string') {
@@ -70,18 +103,96 @@
 			function toggleElement(divId) {
 				$("#" + divId).toggle();
 			}
+			
+			function hslToHex(h, s, l) {
+				h /= 360;
+				s /= 100;
+				l /= 100;
+				let r, g, b;
+				if (s === 0) {
+					r = g = b = l; // achromatic
+				} else {
+					const hue2rgb = (p, q, t) => {
+					if (t < 0) t += 1;
+					if (t > 1) t -= 1;
+					if (t < 1 / 6) return p + (q - p) * 6 * t;
+					if (t < 1 / 2) return q;
+					if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+					return p;
+					};
+					const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+					const p = 2 * l - q;
+					r = hue2rgb(p, q, h + 1 / 3);
+					g = hue2rgb(p, q, h);
+					b = hue2rgb(p, q, h - 1 / 3);
+				}
+				const toHex = x => {
+					const hex = Math.round(x * 255).toString(16);
+					return hex.length === 1 ? '0' + hex : hex;
+				};
+				return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+			}
          
 			function buttonClickedOn(){
-                var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
+				//alert($('#bulbs [value="' + value + '"]').data('value'));
+                //var bip = document.getElementById("bip").value;
                 var aurl = "http://" + location.host + "/api?cmd=power&ip=" + bip + "&st=on"
 			    $.get(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
                     document.getElementById("response").innerHTML = syntaxHighlight(data);
                 });
 			 }
+			 
+			 function buttonClickedPreset(num){
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
+				var bright = document.getElementById("brightt").value;
+                var aurl = "http://" + location.host + "/api?cmd=info&ip=" + bip
+			    $.get(aurl, function(data, status){
+					if (data.includes("No IP")) {
+						document.getElementById("responsediv").style.display = "block";
+						document.getElementById("response").innerHTML = syntaxHighlight(data);
+					} else {
+						var obj = JSON.parse(data);
+						document.getElementById("brightt").value = obj["preferred_state"][num]["brightness"];
+						
+						if (obj["preferred_state"][num]["color_temp"] > 0) {
+							
+							document.getElementById("responsediv").style.display = "none";
+							document.getElementById("ct").checked = true;
+							document.getElementById("ctemp").value = obj["preferred_state"][num]["color_temp"];
+							document.getElementById("ctval").value = obj["preferred_state"][num]["color_temp"];
+							
+						} else if (obj["preferred_state"][num]["hue"] > 0 || obj["preferred_state"][num]["saturation"] > 0) {
+							document.getElementById("responsediv").style.display = "none";
+							var hex = hslToHex(obj["preferred_state"][num]["hue"], obj["preferred_state"][num]["saturation"], 50)
+							document.getElementById("hue").checked = true;
+							document.getElementById("hext").value = hex;
+							document.getElementById("html5colorpicker").value = hex;
+							document.getElementById("colorhexDIV").innerHTML = hex;
+							document.getElementById("selectedcolor").style.backgroundColor = hex;
+							
+							
+						}
+					}
+                });
+			 }
 
 			function buttonClickedOff(){
-                var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
+                //var bip = document.getElementById("bip").value;
 			    var aurl = "http://" + location.host + "/api?cmd=power&ip=" + bip + "&st=off"
 			    $.get(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
@@ -93,12 +204,44 @@
                 var aurl = "http://" + location.host + "/api?cmd=scan"
 			    $.get(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
-                    document.getElementById("response").innerHTML = syntaxHighlight(data);
+					document.getElementById("response").innerHTML = "";
+					var array = JSON.parse(data);
+					var i;
+					for (i = 0; i < array.length; i++) {
+						
+						//console.log(array[i].name + " - " + array[i].ip);
+						var x = document.createElement("P");                        // Create a <p> node
+						var t = document.createTextNode(array[i].name + " - " + array[i].ip);    // Create a text node
+						x.appendChild(t);                                           // Append the text to <p>
+						x.innerHTML +=" ";
+						var button = document.createElement("button");
+						//Assign different attributes to the element. 
+						button.innerHTML = 'Add to saved';
+						button.setAttribute('onclick', 'saveBulb("'+array[i].name +'", "'+array[i].ip+'")');
+						x.appendChild(button);
+						
+						var space = document.createTextNode("  ");
+						x.appendChild(space);
+						
+						var button2 = document.createElement("button");
+						//Assign different attributes to the element. 
+						button2.innerHTML = 'Set as tray shortcut bulb';
+						button2.setAttribute('onclick', 'saveBulbSH("'+array[i].ip+'")');
+						x.appendChild(button2);
+						
+						document.getElementById("response").appendChild(x);
+					
+					}
+                    //document.getElementById("response").innerHTML = syntaxHighlight(data);
                 });
             }
 
             function buttonClickedInfo(){
-                var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
                 var aurl = "http://" + location.host + "/api?cmd=info&ip=" + bip
 			    $.getJSON(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
@@ -107,7 +250,11 @@
 			 }            
              
             function buttonClickedCloud(){
-                var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
                 var aurl = "http://" + location.host + "/api?cmd=cinfo&ip=" + bip
 			    $.getJSON(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
@@ -116,7 +263,11 @@
 			 }            
              
             function buttonClickedSchedule(){
-                var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
                 var aurl = "http://" + location.host + "/api?cmd=schedule&ip=" + bip
 			    $.getJSON(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
@@ -125,7 +276,11 @@
 			 }            
              
             function buttonClickedDetails(){
-                var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
                 var aurl = "http://" + location.host + "/api?cmd=details&ip=" + bip
 			    $.getJSON(aurl, function(data, status){
                     document.getElementById("responsediv").style.display = "block";
@@ -136,7 +291,11 @@
 			 function buttonClickedType(){
              var type = $('input[name=hueorct]:checked').val(); 
              if (type == "hue") {
-             var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
 			 var hext = document.getElementById("hext").value;
              var trans = document.getElementById("trans").value;
              hext = hext.replace('#','');
@@ -147,7 +306,11 @@
                     document.getElementById("response").innerHTML = syntaxHighlight(data);
                 });
              } else if (type == "ct"){
-             var bip = document.getElementById("bip").value;
+				var value = $('#selected').val();
+				var bip = $('#bulbs [value="' + value + '"]').data('value');
+				if (bip == null) { 
+					bip = $('#selected').val();
+				}
 			 var ctemp = document.getElementById("ctval").value;
              var trans = document.getElementById("trans").value;
 			 var bright = document.getElementById("brightt").value;
@@ -159,8 +322,8 @@
              }
 			 }
 
-var colorhex = "#FF0000";
-var color = "#FF0000";
+var colorhex = "#ffffff";
+var color = "#ffffff";
 var colorObj = w3color(color);
 function mouseOverColor(hex) {
     document.getElementById("divpreview").style.visibility = "visible";
@@ -332,6 +495,39 @@ function submitOnEnter(e) {
     }
 }
 
+function saveBulbSH(ip) {
+                var aurl = "http://" + location.host + "/cfgs?bulb=" + ip
+			    $.get(aurl, function(data, status){
+				
+                });
+}
+
+function saveBulb(name, ip) {
+if (localStorage['bulbs']) {
+	var bulbsL2 = JSON.parse(localStorage['bulbs']);
+
+if (bulbsL2.some(bulbsL2=>bulbsL2.ip === ip)) {} else {
+            var feed = {
+                name: name,
+                ip: ip
+            };
+            bulbsL.push(feed);
+
+        localStorage.setItem("bulbs", JSON.stringify(bulbsL));
+		location.reload();
+		}
+} else {
+            var feed = {
+                name: name,
+                ip: ip
+            };
+            bulbsL.push(feed);
+
+        localStorage.setItem("bulbs", JSON.stringify(bulbsL));
+		location.reload();
+}
+}
+
 </script>
 <div id="cpicker">
   <div class="w3-col l4 m12" style="text-align:center;">
@@ -351,18 +547,18 @@ var thisleft = "135";
       <div id="wronginputDIV" style="display: none;">Wrong Input</div>
       <div id="html5DIV">
         <h3>Or Use HTML5:</h3>
-        <input type="color" id="html5colorpicker" onchange="clickColor(0, -1, -1, 5)" value="#ff0000" style="width:85%;">
+        <input type="color" id="html5colorpicker" onchange="clickColor(0, -1, -1, 5)" value="#ffffff" style="width:85%;">
       </div>   
     </div>
   </div>
 
   <div class="w3-col l4 m12" style="text-align:center;">
     <h3>Selected Color:</h3>
-    <div id="selectedcolor" class="w3-large" style="background-color: rgb(0, 204, 255);">
+    <div id="selectedcolor" class="w3-large" style="background-color: #ffffff;">
     
     </div>
     <div id="colornamDIV" class="w3-margin-top"></div>      
-    <div><b><span id="colorhexDIV">#00ccff</span></b></div>
+    <div><b><span id="colorhexDIV">#ffffff</span></b></div>
     <div id="colorrgbDIV">rgb(0, 204, 255)</div>
     <div id="colorhslDIV">hsl(192, 100%, 50%)</div> 
   </div>
