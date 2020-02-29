@@ -64,13 +64,6 @@ app.on('ready', function(){
   tray = new Tray(iconPath)
   
   const contextMenu = Menu.buildFromTemplate([
-    {label: "Bulb On", click: (item, window, event) => {
-      bulbCMD("on");
-    }},
-	{label: "Bulb Off", click: (item, window, event) => {
-      bulbCMD("off");
-    }},
-	{ type: 'separator' },
 	{label: "Preset 1", click: (item, window, event) => {
       bulbCMD("preset", 0);
     }},
@@ -83,7 +76,13 @@ app.on('ready', function(){
 	{label: "Preset 4", click: (item, window, event) => {
       bulbCMD("preset", 3);
     }},
-	
+	{ type: 'separator' },
+	{label: "Bulb On", click: (item, window, event) => {
+      bulbCMD("on");
+    }},
+	{label: "Bulb Off", click: (item, window, event) => {
+      bulbCMD("off");
+    }},
 	{ type: 'separator' },
     {label: "Open", click: (item, window, event) => {
       showMWindow();
