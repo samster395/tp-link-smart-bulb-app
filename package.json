@@ -13,7 +13,7 @@
   "author": "ToXIc-Dev",
   "license": "CC0-1.0",
   "devDependencies": {
-    "electron": "^6.0.11"
+    "electron": "^15.5.5"
   },
   "dependencies": {
     "express": "^4.17.1",
